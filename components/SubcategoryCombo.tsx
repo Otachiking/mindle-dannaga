@@ -309,6 +309,7 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
     >
       <div className="h-[380px]">
         <Chart
+          key={chartMode}
           options={chartOptions}
           series={series}
           type={chartType}

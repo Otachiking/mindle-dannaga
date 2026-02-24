@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
             Copyright © 2026 - Mindle Data Analyst Competition
           </p>
           <p className="text-xs text-white/70">
-            Created by <span className="font-semibold text-white">Dan Naga</span> (Muhammad Iqbal Rasyid & Dilla)
+            Created by <span className="font-semibold text-white">Dan Naga</span> (Muhammad Iqbal Rasyid & Dilla Agustin Nurul Ashfiya)
           </p>
         </div>
       </div>

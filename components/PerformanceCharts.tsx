@@ -132,6 +132,16 @@ const SingleChart: React.FC<SingleChartProps> = ({
       dropShadow: {
         enabled: false,
       },
+      offset: 0,
+      minAngleToShowLabel: 10,
+    },
+    plotOptions: {
+      pie: {
+        dataLabels: {
+          offset: -5,
+          minAngleToShowLabel: 10,
+        },
+      },
     },
     legend: {
       show: true,
@@ -174,13 +184,6 @@ const SingleChart: React.FC<SingleChartProps> = ({
     stroke: {
       width: 2,
       colors: ['#fff'],
-    },
-    plotOptions: {
-      pie: {
-        donut: {
-          size: '0%',
-        },
-      },
     },
   }), [data, metric]);
   
