@@ -199,6 +199,7 @@ const SingleChart: React.FC<SingleChartProps> = ({
       <div className="h-[200px]">
         {viewMode === 'bar' ? (
           <Chart
+            key={`bar-${title}`}
             options={barChartOptions}
             series={barSeries}
             type="bar"
@@ -206,6 +207,7 @@ const SingleChart: React.FC<SingleChartProps> = ({
           />
         ) : (
           <Chart
+            key={`pie-${title}`}
             options={pieChartOptions}
             series={pieSeries}
             type="pie"

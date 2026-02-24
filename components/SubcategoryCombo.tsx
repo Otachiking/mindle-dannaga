@@ -131,14 +131,30 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
     };
     
     if (chartMode === 'combo') {
-      // Combo mode: stacked bars + line
+      // Combo mode: Profit bar + Sales bar (left axis), Quantity line (right axis)
+      // Calculate value ranges for axis alignment
+      const maxSales = Math.max(...subcategoryData.map(s => s.sales));
+      const maxProfit = Math.max(...subcategoryData.map(s => s.profit));
+      const maxLeftValue = Math.max(maxSales, maxProfit);
+      const maxQuantity = Math.max(...subcategoryData.map(s => s.quantity));
+      
+      // Calculate aligned ranges so 0 lines match
+      const leftMin = hasNegativeProfit ? minProfit : 0;
+      const leftMax = maxLeftValue * 1.1;
+      
+      // Calculate right axis to align 0 with left axis 0
+      // ratio = leftMin / (leftMin - leftMax) gives the fraction where 0 sits
+      const zeroRatio = leftMin < 0 ? Math.abs(leftMin) / (Math.abs(leftMin) + leftMax) : 0;
+      const rightMax = maxQuantity * 1.1;
+      const rightMin = zeroRatio > 0 ? -(rightMax * zeroRatio / (1 - zeroRatio)) : 0;
+      
       return {
         chartOptions: {
           ...baseOptions,
           chart: {
             ...baseOptions.chart,
             type: 'line' as const,
-            stacked: true,
+            stacked: false,
           },
           stroke: {
             width: [0, 0, 3],
@@ -150,24 +166,41 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
           colors: [STACKED_COLORS.profit, STACKED_COLORS.sales, STACKED_COLORS.quantity],
           yaxis: [
             {
+              seriesName: 'Profit',
               title: { 
                 text: 'Revenue ($)',
                 style: { color: COLORS.textGray, fontSize: '11px' },
               },
-              min: hasNegativeProfit ? minProfit : undefined,
+              min: leftMin,
+              max: leftMax,
               labels: {
                 formatter: (val: number) => formatAxisValue(val, 'profit'),
                 style: { colors: COLORS.textGray, fontSize: '11px' },
               },
             },
             {
+              seriesName: 'Sales',
+              show: false,
+              min: leftMin,
+              max: leftMax,
+              labels: {
+                formatter: (val: number) => formatAxisValue(val, 'sales'),
+              },
+            },
+            {
+              seriesName: 'Quantity',
               opposite: true,
               title: { 
                 text: 'Quantity (units)',
                 style: { color: STACKED_COLORS.quantity, fontSize: '11px' },
               },
+              min: rightMin,
+              max: rightMax,
               labels: {
-                formatter: (val: number) => formatAxisValue(val, 'quantity'),
+                formatter: (val: number) => {
+                  if (val < 0) return '';
+                  return formatAxisValue(val, 'quantity');
+                },
                 style: { colors: STACKED_COLORS.quantity, fontSize: '11px' },
               },
             },

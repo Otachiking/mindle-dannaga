@@ -98,8 +98,6 @@ export const STATE_TO_REGION: Record<string, string> = {
   'Hawaii': 'West',
   
   // South
-  'Texas': 'South',
-  'Oklahoma': 'South',
   'Louisiana': 'South',
   'Arkansas': 'South',
   'Mississippi': 'South',
@@ -111,10 +109,6 @@ export const STATE_TO_REGION: Record<string, string> = {
   'South Carolina': 'South',
   'North Carolina': 'South',
   'Virginia': 'South',
-  'West Virginia': 'South',
-  'Maryland': 'South',
-  'Delaware': 'South',
-  'District of Columbia': 'South',
   
   // East
   'New York': 'East',
@@ -126,9 +120,15 @@ export const STATE_TO_REGION: Record<string, string> = {
   'Vermont': 'East',
   'New Hampshire': 'East',
   'Maine': 'East',
+  'Delaware': 'East',
+  'Maryland': 'East',
+  'District of Columbia': 'East',
+  'Ohio': 'East',
+  'West Virginia': 'East',
   
   // Central (Midwest)
-  'Ohio': 'Central',
+  'Texas': 'Central',
+  'Oklahoma': 'Central',
   'Michigan': 'Central',
   'Indiana': 'Central',
   'Illinois': 'Central',
