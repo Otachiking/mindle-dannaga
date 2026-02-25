@@ -8,7 +8,7 @@ import Card from './ui/Card';
 import Button from './ui/Button';
 import { DataRow, MetricType, CityChartMode } from '@/lib/types';
 import { aggregateByCity } from '@/lib/dataProcessor';
-import { COLORS, formatAxisValue, METRIC_LABELS } from '@/lib/constants';
+import { COLORS, formatAxisValue, formatFullValue, METRIC_LABELS } from '@/lib/constants';
 
 // Dynamic import for ApexCharts (client-side only)
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false }) as React.ComponentType<ApexChartProps>;
@@ -20,6 +20,10 @@ interface CityChartProps {
 
 const CityChart: React.FC<CityChartProps> = ({ data, metric }) => {
   const [mode, setMode] = useState<CityChartMode>('top5');
+  
+  const metricIndicator = (
+    <span className="text-xs font-normal text-[#6c757d]">({METRIC_LABELS[metric]})</span>
+  );
   
   const cityData = useMemo(() => {
     return aggregateByCity(data, metric, mode === 'top5', 5);
@@ -85,7 +89,7 @@ const CityChart: React.FC<CityChartProps> = ({ data, metric }) => {
         return `<div class="bg-[#2c3e50] text-white px-3 py-2 rounded-lg text-sm shadow-lg">
           <div class="font-semibold">${city.city}</div>
           <div class="text-white/70 text-xs">${city.state}</div>
-          <div class="mt-1">${METRIC_LABELS[metric]}: ${formatAxisValue(value, metric)}</div>
+          <div class="mt-1">${METRIC_LABELS[metric]}: ${formatFullValue(value, metric)}</div>
         </div>`;
       },
     },
@@ -116,7 +120,7 @@ const CityChart: React.FC<CityChartProps> = ({ data, metric }) => {
   );
   
   return (
-    <Card title="City Performance" headerRight={toggleButtons}>
+    <Card title="City Performance" titleExtra={metricIndicator} headerRight={toggleButtons}>
       <div className="h-[400px]">
         <Chart
           options={chartOptions}

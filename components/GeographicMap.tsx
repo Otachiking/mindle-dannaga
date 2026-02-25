@@ -190,27 +190,30 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
       >
         Margin
       </Button>
-      <span className="border-l border-[#e9ecef] mx-1" />
-      <Button
-        active={viewMode === 'value'}
-        onClick={() => setViewMode('value')}
-        className="text-xs px-2 py-1"
-      >
-        Value
-      </Button>
-      <Button
-        active={viewMode === 'region'}
-        onClick={() => setViewMode('region')}
-        className="text-xs px-2 py-1"
-      >
-        States
-      </Button>
     </div>
   );
   
   return (
     <Card title="Geographic Distribution" headerRight={metricButtons}>
       <div className="relative h-[400px]">
+        {/* Color By Dropdown - Top Left */}
+        <div className="absolute top-2 left-2 z-10">
+          <div className="bg-white/95 border border-[#e9ecef] rounded-lg shadow-sm px-2.5 py-1.5 flex items-center gap-1.5">
+            <span className="text-[10px] text-[#6c757d]">Color by:</span>
+            <select
+              value={viewMode}
+              onChange={(e) => setViewMode(e.target.value as MapViewMode)}
+              className="appearance-none bg-transparent text-xs font-medium text-[#2c3e50] pr-4 cursor-pointer focus:outline-none"
+            >
+              <option value="value">Value</option>
+              <option value="region">Region</option>
+            </select>
+            <svg className="w-3 h-3 text-[#6c757d] pointer-events-none -ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        
         {/* Zoom Controls - Top Right */}
         <div className="absolute top-2 right-2 z-10 flex gap-1">
           <button

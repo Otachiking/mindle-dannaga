@@ -65,8 +65,9 @@ const SingleChart: React.FC<SingleChartProps> = ({
       enabled: false,
     },
     xaxis: {
-      categories: data.map((d) => d.name),
+      categories: data.map((d) => d.name.length > 10 ? d.name.slice(0, 9) + '…' : d.name),
       labels: {
+        rotate: 0,
         style: {
           fontSize: '10px',
           colors: COLORS.textGray,
@@ -235,7 +236,10 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
     <div>
       {/* Chart Type Switcher */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-[#2c3e50]">Performance Breakdown</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-[#2c3e50]">Performance Breakdown</h3>
+          <span className="text-sm text-[#6c757d]">({METRIC_LABELS[metric]})</span>
+        </div>
         <div className="flex gap-1">
           <Button
             active={viewMode === 'bar'}
@@ -263,9 +267,10 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SingleChart
-          title="Category Performance"
-          data={categoryData}
+          title="Region Performance"
+          data={regionData}
           metric={metric}
+          highlightBar={selectedRegion !== 'all' ? selectedRegion : undefined}
           viewMode={viewMode}
         />
         <SingleChart
@@ -275,10 +280,9 @@ const PerformanceCharts: React.FC<PerformanceChartsProps> = ({
           viewMode={viewMode}
         />
         <SingleChart
-          title="Region Performance"
-          data={regionData}
+          title="Category Performance"
+          data={categoryData}
           metric={metric}
-          highlightBar={selectedRegion !== 'all' ? selectedRegion : undefined}
           viewMode={viewMode}
         />
         <SingleChart

@@ -18,10 +18,10 @@ interface SubcategoryComboProps {
   metric: MetricType;
 }
 
-// Stacked bar colors: Profit (dark blue), Sales (purple), Quantity line (pink)
+// Stacked bar colors: Profit (dark blue), Sales (medium blue), Quantity line (pink)
 const STACKED_COLORS = {
   profit: '#0b2d79',  // Dark blue
-  sales: '#9852d9',   // Purple
+  sales: '#1470e6',   // Medium blue
   quantity: '#e43fdd', // Pink
 };
 
@@ -83,8 +83,8 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
         strokeDashArray: 4,
       },
       tooltip: {
-        shared: chartMode === 'combo',
-        intersect: chartMode !== 'combo',
+        shared: true,
+        intersect: false,
         custom: function({ series, seriesIndex, dataPointIndex, w }) {
           const subcatItem = subcategoryData[dataPointIndex];
           const categoryColor = subcatItem.color;
@@ -192,7 +192,7 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
               opposite: true,
               title: { 
                 text: 'Quantity (units)',
-                style: { color: STACKED_COLORS.quantity, fontSize: '11px' },
+                style: { color: COLORS.textGray, fontSize: '11px' },
               },
               min: rightMin,
               max: rightMax,
@@ -201,7 +201,7 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
                   if (val < 0) return '';
                   return formatAxisValue(val, 'quantity');
                 },
-                style: { colors: STACKED_COLORS.quantity, fontSize: '11px' },
+                style: { colors: COLORS.textGray, fontSize: '11px' },
               },
             },
           ],
