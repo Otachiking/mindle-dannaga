@@ -41,6 +41,9 @@ const SingleChart: React.FC<SingleChartProps> = ({
   highlightBar,
   viewMode,
 }) => {
+  const hasNegative = useMemo(() => data.some(d => d.value < 0), [data]);
+  const minValue = useMemo(() => Math.min(0, ...data.map(d => d.value)), [data]);
+  
   const barChartOptions: ApexCharts.ApexOptions = useMemo(() => ({
     chart: {
       type: 'bar',
@@ -84,7 +87,6 @@ const SingleChart: React.FC<SingleChartProps> = ({
           colors: COLORS.textGray,
         },
       },
-      min: 0,
     },
     grid: {
       borderColor: COLORS.borderLight,
@@ -111,7 +113,23 @@ const SingleChart: React.FC<SingleChartProps> = ({
         </div>`;
       },
     },
-  }), [data, metric, highlightBar]);
+    annotations: hasNegative ? {
+      yaxis: [{
+        y: minValue,
+        y2: 0,
+        fillColor: 'rgba(220, 53, 69, 0.15)',
+        borderColor: 'transparent',
+        label: {
+          text: 'Negative',
+          borderColor: 'transparent',
+          style: { color: '#dc3545', background: 'transparent', fontSize: '9px' },
+          position: 'left' as const,
+          offsetX: 30,
+          offsetY: 8,
+        },
+      }],
+    } : undefined,
+  }), [data, metric, highlightBar, hasNegative, minValue]);
   
   const pieChartOptions: ApexCharts.ApexOptions = useMemo(() => ({
     chart: {

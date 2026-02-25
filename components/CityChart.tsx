@@ -29,6 +29,10 @@ const CityChart: React.FC<CityChartProps> = ({ data, metric }) => {
     return aggregateByCity(data, metric, mode === 'top5', 5);
   }, [data, metric, mode]);
   
+  // Check for negative values (common in bottom 5)
+  const hasNegative = useMemo(() => cityData.some(c => c.value < 0), [cityData]);
+  const minValue = useMemo(() => Math.min(0, ...cityData.map(c => c.value)), [cityData]);
+  
   const chartOptions: ApexCharts.ApexOptions = useMemo(() => ({
     chart: {
       type: 'bar',
@@ -93,7 +97,21 @@ const CityChart: React.FC<CityChartProps> = ({ data, metric }) => {
         </div>`;
       },
     },
-  }), [cityData, metric, mode]);
+    annotations: hasNegative ? {
+      xaxis: [{
+        x: minValue,
+        x2: 0,
+        fillColor: 'rgba(220, 53, 69, 0.15)',
+        borderColor: 'transparent',
+        label: {
+          text: 'Negative',
+          borderColor: 'transparent',
+          style: { color: '#dc3545', background: 'transparent', fontSize: '10px' },
+          orientation: 'horizontal',
+        },
+      }],
+    } : undefined,
+  }), [cityData, metric, mode, hasNegative, minValue]);
   
   const series = useMemo(() => [{
     name: METRIC_LABELS[metric],

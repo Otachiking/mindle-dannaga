@@ -22,10 +22,12 @@ interface GeographicMapProps {
 }
 
 type MapViewMode = 'value' | 'region';
+type MapScaleMode = 'region' | 'state' | 'city' | 'zipcode';
 
 const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, metric }) => {
   const [mapMetric, setMapMetric] = useState<MapMetricType>('profit');
   const [viewMode, setViewMode] = useState<MapViewMode>('value');
+  const [scaleMode, setScaleMode] = useState<MapScaleMode>('state');
   const [tooltipContent, setTooltipContent] = useState<string>('');
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -37,38 +39,144 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
     return stateMap;
   }, [data]);
   
+  // Aggregate by region for region scale mode
+  const regionData = useMemo(() => {
+    const regionMap = new Map<string, { sales: number; profit: number; quantity: number }>();
+    stateData.forEach((state) => {
+      const region = state.region;
+      const current = regionMap.get(region) || { sales: 0, profit: 0, quantity: 0 };
+      current.sales += state.sales;
+      current.profit += state.profit;
+      current.quantity += state.quantity;
+      regionMap.set(region, current);
+    });
+    return regionMap;
+  }, [stateData]);
+  
+  // Aggregate by city for city scale mode (top 3 per state)
+  const cityDataByState = useMemo(() => {
+    if (scaleMode !== 'city') return new Map<string, { city: string; value: number }[]>();
+    const cityMap = new Map<string, Map<string, { sales: number; profit: number; quantity: number }>>();
+    for (const row of data) {
+      const state = row['State'];
+      const city = row['City'];
+      if (!cityMap.has(state)) cityMap.set(state, new Map());
+      const stateMap = cityMap.get(state)!;
+      const cur = stateMap.get(city) || { sales: 0, profit: 0, quantity: 0 };
+      cur.sales += row['Sales'];
+      cur.profit += row['Profit'];
+      cur.quantity += row['Quantity'];
+      stateMap.set(city, cur);
+    }
+    const result = new Map<string, { city: string; value: number }[]>();
+    cityMap.forEach((cities, state) => {
+      const entries: { city: string; value: number }[] = [];
+      cities.forEach((val, city) => {
+        let v: number;
+        if (mapMetric === 'profitMargin') v = val.sales > 0 ? (val.profit / val.sales) * 100 : 0;
+        else if (mapMetric === 'sales') v = val.sales;
+        else if (mapMetric === 'quantity') v = val.quantity;
+        else v = val.profit;
+        entries.push({ city, value: v });
+      });
+      entries.sort((a, b) => b.value - a.value);
+      result.set(state, entries.slice(0, 3));
+    });
+    return result;
+  }, [data, scaleMode, mapMetric]);
+  
+  // Aggregate by zipcode for zipcode scale mode (top 3 per state)
+  const zipcodeDataByState = useMemo(() => {
+    if (scaleMode !== 'zipcode') return new Map<string, { zipcode: string; value: number }[]>();
+    const zipMap = new Map<string, Map<string, { sales: number; profit: number; quantity: number }>>();
+    for (const row of data) {
+      const state = row['State'];
+      const zip = String(row['Postal Code']);
+      if (!zipMap.has(state)) zipMap.set(state, new Map());
+      const stateMap = zipMap.get(state)!;
+      const cur = stateMap.get(zip) || { sales: 0, profit: 0, quantity: 0 };
+      cur.sales += row['Sales'];
+      cur.profit += row['Profit'];
+      cur.quantity += row['Quantity'];
+      stateMap.set(zip, cur);
+    }
+    const result = new Map<string, { zipcode: string; value: number }[]>();
+    zipMap.forEach((zips, state) => {
+      const entries: { zipcode: string; value: number }[] = [];
+      zips.forEach((val, zip) => {
+        let v: number;
+        if (mapMetric === 'profitMargin') v = val.sales > 0 ? (val.profit / val.sales) * 100 : 0;
+        else if (mapMetric === 'sales') v = val.sales;
+        else if (mapMetric === 'quantity') v = val.quantity;
+        else v = val.profit;
+        entries.push({ zipcode: zip, value: v });
+      });
+      entries.sort((a, b) => b.value - a.value);
+      result.set(state, entries.slice(0, 3));
+    });
+    return result;
+  }, [data, scaleMode, mapMetric]);
+  
   // Calculate min/max values for color scale
   const { minValue, maxValue } = useMemo(() => {
     let min = Infinity;
     let max = -Infinity;
     
-    stateData.forEach((state) => {
-      let value: number;
+    if (scaleMode === 'region') {
+      regionData.forEach((region) => {
+        let value: number;
+        if (mapMetric === 'profitMargin') {
+          value = region.sales > 0 ? (region.profit / region.sales) * 100 : 0;
+        } else {
+          value = mapMetric === 'profit' ? region.profit : 
+                       mapMetric === 'sales' ? region.sales : region.quantity;
+        }
+        if (value < min) min = value;
+        if (value > max) max = value;
+      });
+    } else {
+      stateData.forEach((state) => {
+        let value: number;
+        if (mapMetric === 'profitMargin') {
+          value = state.sales > 0 ? (state.profit / state.sales) * 100 : 0;
+        } else {
+          value = mapMetric === 'profit' ? state.profit : 
+                       mapMetric === 'sales' ? state.sales : state.quantity;
+        }
+        if (value < min) min = value;
+        if (value > max) max = value;
+      });
+    }
+    
+    return { minValue: min === Infinity ? 0 : min, maxValue: max === -Infinity ? 0 : max };
+  }, [stateData, regionData, mapMetric, scaleMode]);
+  
+  // 3-color scale: Blue (high) -> White (zero) -> Pink (low/negative)
+  const getValueColor = (stateName: string): { color: string; opacity: number } => {
+    let value: number | undefined;
+    
+    if (scaleMode === 'region') {
+      const region = STATE_TO_REGION[stateName];
+      const regionVal = region ? regionData.get(region) : undefined;
+      if (!regionVal) return { color: '#1a1a1a', opacity: 0.3 };
+      if (mapMetric === 'profitMargin') {
+        value = regionVal.sales > 0 ? (regionVal.profit / regionVal.sales) * 100 : 0;
+      } else {
+        value = mapMetric === 'profit' ? regionVal.profit : 
+                     mapMetric === 'sales' ? regionVal.sales : regionVal.quantity;
+      }
+    } else {
+      const state = stateData.get(stateName);
+      if (!state) return { color: '#1a1a1a', opacity: 0.3 };
       if (mapMetric === 'profitMargin') {
         value = state.sales > 0 ? (state.profit / state.sales) * 100 : 0;
       } else {
         value = mapMetric === 'profit' ? state.profit : 
                      mapMetric === 'sales' ? state.sales : state.quantity;
       }
-      if (value < min) min = value;
-      if (value > max) max = value;
-    });
-    
-    return { minValue: min === Infinity ? 0 : min, maxValue: max === -Infinity ? 0 : max };
-  }, [stateData, mapMetric]);
-  
-  // 3-color scale: Blue (high) -> White (zero) -> Pink (low/negative)
-  const getValueColor = (stateName: string): { color: string; opacity: number } => {
-    const state = stateData.get(stateName);
-    if (!state) return { color: '#1a1a1a', opacity: 0.3 }; // Black with low opacity for no data
-    
-    let value: number;
-    if (mapMetric === 'profitMargin') {
-      value = state.sales > 0 ? (state.profit / state.sales) * 100 : 0;
-    } else {
-      value = mapMetric === 'profit' ? state.profit : 
-                   mapMetric === 'sales' ? state.sales : state.quantity;
     }
+    
+    if (value === undefined) return { color: '#1a1a1a', opacity: 0.3 };
     
     // If all values are the same or zero range, return white
     if (maxValue === minValue) return { color: '#ffffff', opacity: 1 };
@@ -107,6 +215,21 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
   };
   
   const getStateMetricValue = (stateName: string): string => {
+    if (scaleMode === 'region') {
+      const region = STATE_TO_REGION[stateName];
+      const regionVal = region ? regionData.get(region) : undefined;
+      if (!regionVal) return 'No data';
+      switch (mapMetric) {
+        case 'sales': return formatMetricValue(regionVal.sales, 'sales');
+        case 'profit': return formatMetricValue(regionVal.profit, 'profit');
+        case 'quantity': return formatMetricValue(regionVal.quantity, 'quantity');
+        case 'profitMargin':
+          const rMargin = regionVal.sales > 0 ? (regionVal.profit / regionVal.sales) * 100 : 0;
+          return formatMetricValue(rMargin, 'profitMargin');
+        default: return 'No data';
+      }
+    }
+    
     const state = stateData.get(stateName);
     if (!state) return 'No data';
     
@@ -131,9 +254,39 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
   ) => {
     const stateName = geo.properties.name;
     const region = STATE_TO_REGION[stateName] || 'Unknown';
-    const value = getStateMetricValue(stateName);
     const metricLabel = mapMetric === 'profitMargin' ? 'Margin' : mapMetric.charAt(0).toUpperCase() + mapMetric.slice(1);
-    setTooltipContent(`${stateName} (${region})\n${metricLabel}: ${value}`);
+    
+    let content = '';
+    
+    if (scaleMode === 'region') {
+      const value = getStateMetricValue(stateName);
+      content = `${region} Region\n${metricLabel}: ${value}\n(includes ${stateName})`;
+    } else if (scaleMode === 'city') {
+      const value = getStateMetricValue(stateName);
+      const topCities = cityDataByState.get(stateName) || [];
+      content = `${stateName} (${region})\n${metricLabel}: ${value}`;
+      if (topCities.length > 0) {
+        content += '\n─ Top Cities ─';
+        topCities.forEach(c => {
+          content += `\n${c.city}: ${formatMetricValue(c.value, mapMetric === 'profitMargin' ? 'profitMargin' : mapMetric as MetricType)}`;
+        });
+      }
+    } else if (scaleMode === 'zipcode') {
+      const value = getStateMetricValue(stateName);
+      const topZips = zipcodeDataByState.get(stateName) || [];
+      content = `${stateName} (${region})\n${metricLabel}: ${value}`;
+      if (topZips.length > 0) {
+        content += '\n─ Top Zipcodes ─';
+        topZips.forEach(z => {
+          content += `\n${z.zipcode}: ${formatMetricValue(z.value, mapMetric === 'profitMargin' ? 'profitMargin' : mapMetric as MetricType)}`;
+        });
+      }
+    } else {
+      const value = getStateMetricValue(stateName);
+      content = `${stateName} (${region})\n${metricLabel}: ${value}`;
+    }
+    
+    setTooltipContent(content);
     setTooltipPosition({ x: event.clientX, y: event.clientY });
   };
   
@@ -196,8 +349,8 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
   return (
     <Card title="Geographic Distribution" headerRight={metricButtons}>
       <div className="relative h-[400px]">
-        {/* Color By Dropdown - Top Left */}
-        <div className="absolute top-2 left-2 z-10">
+        {/* Color By & Scale By Dropdowns - Top Left */}
+        <div className="absolute top-2 left-2 z-10 flex gap-1.5">
           <div className="bg-white/95 border border-[#e9ecef] rounded-lg shadow-sm px-2.5 py-1.5 flex items-center gap-1.5">
             <span className="text-[10px] text-[#6c757d]">Color by:</span>
             <select
@@ -207,6 +360,22 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
             >
               <option value="value">Value</option>
               <option value="region">Region</option>
+            </select>
+            <svg className="w-3 h-3 text-[#6c757d] pointer-events-none -ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+          <div className="bg-white/95 border border-[#e9ecef] rounded-lg shadow-sm px-2.5 py-1.5 flex items-center gap-1.5">
+            <span className="text-[10px] text-[#6c757d]">Scale by:</span>
+            <select
+              value={scaleMode}
+              onChange={(e) => setScaleMode(e.target.value as MapScaleMode)}
+              className="appearance-none bg-transparent text-xs font-medium text-[#2c3e50] pr-4 cursor-pointer focus:outline-none"
+            >
+              <option value="region">Region</option>
+              <option value="state">State</option>
+              <option value="city">City</option>
+              <option value="zipcode">Zipcode</option>
             </select>
             <svg className="w-3 h-3 text-[#6c757d] pointer-events-none -ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

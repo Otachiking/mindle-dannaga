@@ -198,6 +198,10 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
     }));
   }, [scatterData]);
   
+  // Check for negative scatter values
+  const scatterHasNegative = useMemo(() => scatterData.some(s => s.metricValue < 0), [scatterData]);
+  const scatterMinValue = useMemo(() => Math.min(0, ...scatterData.map(s => s.metricValue)), [scatterData]);
+  
   const scatterChartOptions: ApexCharts.ApexOptions = useMemo(() => ({
     chart: {
       type: 'scatter',
@@ -210,6 +214,20 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
       size: 8,
       strokeWidth: 1,
       strokeColors: '#fff',
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: function(_val: number, opts: { seriesIndex: number; dataPointIndex: number; w: { config: { series: { data: { subcategory: string }[] }[] } } }) {
+        return opts.w.config.series[opts.seriesIndex].data[opts.dataPointIndex].subcategory;
+      },
+      textAnchor: 'middle' as const,
+      offsetY: -12,
+      style: {
+        fontSize: '8px',
+        fontWeight: '500',
+        colors: [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']],
+      },
+      background: { enabled: false },
     },
     xaxis: {
       title: {
@@ -262,7 +280,23 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         </div>`;
       },
     },
-  }), [metric]);
+    annotations: scatterHasNegative ? {
+      yaxis: [{
+        y: scatterMinValue,
+        y2: 0,
+        fillColor: 'rgba(220, 53, 69, 0.15)',
+        borderColor: 'transparent',
+        label: {
+          text: 'Negative',
+          borderColor: 'transparent',
+          style: { color: '#dc3545', background: 'transparent', fontSize: '10px' },
+          position: 'left' as const,
+          offsetX: 40,
+          offsetY: 10,
+        },
+      }],
+    } : undefined,
+  }), [metric, scatterHasNegative, scatterMinValue]);
   
   const lineMetricIndicator = (
     <span className="text-xs font-normal text-[#6c757d]">({METRIC_LABELS[metric]})</span>

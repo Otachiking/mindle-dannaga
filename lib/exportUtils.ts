@@ -36,14 +36,14 @@ export const exportToExcel = async (data: DataRow[], selectedRegion: string, sel
   utils.book_append_sheet(workbook, summarySheet, 'Summary');
   
   // Raw Data Sheet
-  const rawHeaders = ['Order ID', 'Ship Mode', 'Segment', 'Country', 'City', 'State', 'Region', 'Category', 'Sub-Category', 'Sales', 'Quantity', 'Discount', 'Profit'];
+  const rawHeaders = ['Ship Mode', 'Segment', 'Country', 'City', 'State', 'Postal Code', 'Region', 'Category', 'Sub-Category', 'Sales', 'Quantity', 'Discount', 'Profit', 'Profit Margin'];
   const rawRows = data.map(row => [
-    row['Order ID'],
     row['Ship Mode'],
     row['Segment'],
     row['Country'],
     row['City'],
     row['State'],
+    row['Postal Code'],
     row['Region'],
     row['Category'],
     row['Sub-Category'],
@@ -51,6 +51,7 @@ export const exportToExcel = async (data: DataRow[], selectedRegion: string, sel
     row['Quantity'],
     row['Discount'],
     row['Profit'],
+    row['Sales'] > 0 ? ((row['Profit'] / row['Sales']) * 100) : 0,
   ]);
   const rawSheet = utils.aoa_to_sheet([rawHeaders, ...rawRows]);
   utils.book_append_sheet(workbook, rawSheet, 'Raw Data');
@@ -64,8 +65,8 @@ export const exportToExcel = async (data: DataRow[], selectedRegion: string, sel
   
   // Subcategory Performance Sheet
   const subcatData = aggregateBySubcategory(data);
-  const subcatHeaders = ['Sub-Category', 'Category', 'Profit', 'Sales', 'Quantity'];
-  const subcatRows = subcatData.map(s => [s.subcategory, s.category, s.profit, s.sales, s.quantity]);
+  const subcatHeaders = ['Sub-Category', 'Category', 'Profit', 'Sales', 'Quantity', 'Profit Margin'];
+  const subcatRows = subcatData.map(s => [s.subcategory, s.category, s.profit, s.sales, s.quantity, s.profitMargin]);
   const subcatSheet = utils.aoa_to_sheet([subcatHeaders, ...subcatRows]);
   utils.book_append_sheet(workbook, subcatSheet, 'Subcategory Performance');
   
@@ -96,6 +97,62 @@ export const exportToExcel = async (data: DataRow[], selectedRegion: string, sel
   const shipRows = shipData.map(s => [s.name, s.value]);
   const shipSheet = utils.aoa_to_sheet([shipHeaders, ...shipRows]);
   utils.book_append_sheet(workbook, shipSheet, 'Ship Mode Performance');
+  
+  // Discount Analysis Sheet
+  const discountMap = new Map<number, { sales: number; profit: number; quantity: number; count: number }>();
+  for (const row of data) {
+    const disc = Math.round(row['Discount'] * 100) / 100;
+    const cur = discountMap.get(disc) || { sales: 0, profit: 0, quantity: 0, count: 0 };
+    cur.sales += row['Sales'];
+    cur.profit += row['Profit'];
+    cur.quantity += row['Quantity'];
+    cur.count += 1;
+    discountMap.set(disc, cur);
+  }
+  const discountHeaders = ['Discount', 'Total Sales', 'Total Profit', 'Total Quantity', 'Profit Margin', 'Transaction Count'];
+  const discountRows: (string | number)[][] = [];
+  Array.from(discountMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .forEach(([disc, val]) => {
+      discountRows.push([
+        `${(disc * 100).toFixed(0)}%`,
+        val.sales,
+        val.profit,
+        val.quantity,
+        val.sales > 0 ? ((val.profit / val.sales) * 100) : 0,
+        val.count,
+      ]);
+    });
+  const discountSheet = utils.aoa_to_sheet([discountHeaders, ...discountRows]);
+  utils.book_append_sheet(workbook, discountSheet, 'Discount Analysis');
+  
+  // Subcategory Discount Analysis Sheet
+  const subcatDiscMap = new Map<string, { category: string; sales: number; profit: number; quantity: number; totalDiscount: number; count: number }>();
+  for (const row of data) {
+    const subcat = row['Sub-Category'];
+    const cur = subcatDiscMap.get(subcat) || { category: row['Category'], sales: 0, profit: 0, quantity: 0, totalDiscount: 0, count: 0 };
+    cur.sales += row['Sales'];
+    cur.profit += row['Profit'];
+    cur.quantity += row['Quantity'];
+    cur.totalDiscount += row['Discount'];
+    cur.count += 1;
+    subcatDiscMap.set(subcat, cur);
+  }
+  const subcatDiscHeaders = ['Sub-Category', 'Category', 'Avg Discount', 'Total Sales', 'Total Profit', 'Total Quantity', 'Profit Margin'];
+  const subcatDiscRows: (string | number)[][] = [];
+  subcatDiscMap.forEach((val, key) => {
+    subcatDiscRows.push([
+      key,
+      val.category,
+      val.totalDiscount / val.count,
+      val.sales,
+      val.profit,
+      val.quantity,
+      val.sales > 0 ? ((val.profit / val.sales) * 100) : 0,
+    ]);
+  });
+  const subcatDiscSheet = utils.aoa_to_sheet([subcatDiscHeaders, ...subcatDiscRows]);
+  utils.book_append_sheet(workbook, subcatDiscSheet, 'Subcat Discount Analysis');
   
   // Generate and download
   const fileName = `MindleStore_Dashboard_${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -133,6 +190,26 @@ export const exportToPDF = async () => {
       useCORS: true,
       logging: false,
       backgroundColor: '#f8f9fa',
+      onclone: (clonedDoc) => {
+        // Fix Tailwind CSS v4 oklab() colors that html2canvas can't parse
+        const allElements = clonedDoc.querySelectorAll('*');
+        allElements.forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          const computed = window.getComputedStyle(htmlEl);
+          const bgColor = computed.backgroundColor;
+          const color = computed.color;
+          const borderColor = computed.borderColor;
+          if (bgColor && bgColor.includes('oklab')) {
+            htmlEl.style.backgroundColor = 'transparent';
+          }
+          if (color && color.includes('oklab')) {
+            htmlEl.style.color = '#2c3e50';
+          }
+          if (borderColor && borderColor.includes('oklab')) {
+            htmlEl.style.borderColor = '#e9ecef';
+          }
+        });
+      },
     });
     
     const imgData = canvas.toDataURL('image/png');
