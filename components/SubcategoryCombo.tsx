@@ -18,11 +18,12 @@ interface SubcategoryComboProps {
   metric: MetricType;
 }
 
-// Stacked bar colors: Profit (dark blue), Sales (medium blue), Quantity line (pink)
+// Stacked bar colors: Profit (dark blue), Sales (medium blue), Quantity line (pink), Profit Margin (purple)
 const STACKED_COLORS = {
   profit: '#0b2d79',  // Dark blue
   sales: '#1470e6',   // Medium blue
   quantity: '#e43fdd', // Pink
+  profitMargin: '#9852d9', // Purple
 };
 
 type ChartMode = 'combo' | 'profit' | 'quantity' | 'sales';
@@ -90,6 +91,7 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
           const categoryColor = subcatItem.color;
           
           if (chartMode === 'combo') {
+            const marginColor = subcatItem.profitMargin >= 0 ? '#69db7c' : '#ff6b6b';
             return `<div style="background: #2c3e50; color: white; padding: 10px 14px; border-radius: 8px; font-size: 12px; min-width: 180px;">
               <div style="font-weight: 600; margin-bottom: 6px; font-size: 13px;">${subcatItem.subcategory}</div>
               <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.2);">
@@ -104,15 +106,20 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
                 <div style="width: 10px; height: 10px; border-radius: 2px; background: ${STACKED_COLORS.sales};"></div>
                 <span>Sales: ${formatFullValue(subcatItem.sales, 'sales')}</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                 <div style="width: 10px; height: 10px; border-radius: 50%; background: ${STACKED_COLORS.quantity};"></div>
                 <span>Quantity: ${subcatItem.quantity.toLocaleString()}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: ${STACKED_COLORS.profitMargin};"></div>
+                <span style="color: ${marginColor};">Profit Margin: ${subcatItem.profitMargin.toFixed(1)}%</span>
               </div>
             </div>`;
           } else {
             const metricLabel = chartMode.charAt(0).toUpperCase() + chartMode.slice(1);
             const value = chartMode === 'profit' ? subcatItem.profit : chartMode === 'sales' ? subcatItem.sales : subcatItem.quantity;
             const formattedValue = chartMode === 'quantity' ? value.toLocaleString() : formatFullValue(value, chartMode);
+            const marginColor = subcatItem.profitMargin >= 0 ? '#69db7c' : '#ff6b6b';
             
             return `<div style="background: #2c3e50; color: white; padding: 10px 14px; border-radius: 8px; font-size: 12px; min-width: 160px;">
               <div style="font-weight: 600; margin-bottom: 6px; font-size: 13px;">${subcatItem.subcategory}</div>
@@ -120,9 +127,13 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
                 <div style="width: 10px; height: 10px; border-radius: 2px; background: ${categoryColor};"></div>
                 <span style="color: rgba(255,255,255,0.7);">${subcatItem.category}</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                 <div style="width: 10px; height: 10px; border-radius: 2px; background: ${STACKED_COLORS[chartMode]};"></div>
                 <span>${metricLabel}: ${formattedValue}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: ${STACKED_COLORS.profitMargin};"></div>
+                <span style="color: ${marginColor};">Margin: ${subcatItem.profitMargin.toFixed(1)}%</span>
               </div>
             </div>`;
           }
@@ -157,13 +168,14 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
             stacked: false,
           },
           stroke: {
-            width: [0, 0, 3],
+            width: [0, 0, 3, 2.5],
             curve: 'smooth' as const,
+            dashArray: [0, 0, 0, 5],
           },
           fill: {
             opacity: 1,
           },
-          colors: [STACKED_COLORS.profit, STACKED_COLORS.sales, STACKED_COLORS.quantity],
+          colors: [STACKED_COLORS.profit, STACKED_COLORS.sales, STACKED_COLORS.quantity, STACKED_COLORS.profitMargin],
           yaxis: [
             {
               seriesName: 'Profit',
@@ -201,6 +213,15 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
                   if (val < 0) return '';
                   return formatAxisValue(val, 'quantity');
                 },
+                style: { colors: COLORS.textGray, fontSize: '11px' },
+              },
+            },
+            {
+              seriesName: 'Profit Margin',
+              opposite: true,
+              show: false,
+              labels: {
+                formatter: (val: number) => `${val.toFixed(0)}%`,
                 style: { colors: COLORS.textGray, fontSize: '11px' },
               },
             },
@@ -250,6 +271,11 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
             name: 'Quantity',
             type: 'line',
             data: subcategoryData.map((s) => s.quantity),
+          },
+          {
+            name: 'Profit Margin',
+            type: 'line',
+            data: subcategoryData.map((s) => Math.round(s.profitMargin * 100) / 100),
           },
         ],
         chartType: 'line' as const,

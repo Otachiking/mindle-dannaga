@@ -87,6 +87,8 @@ const CityChart: React.FC<CityChartProps> = ({ data, metric }) => {
       yaxis: { lines: { show: false } },
     },
     tooltip: {
+      shared: true,
+      intersect: false,
       custom: function({ series, seriesIndex, dataPointIndex }) {
         const city = cityData[dataPointIndex];
         const value = series[seriesIndex][dataPointIndex];

@@ -9,6 +9,7 @@ import GeographicMap from '@/components/GeographicMap';
 import SubcategoryCombo from '@/components/SubcategoryCombo';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import DiscountAnalysis from '@/components/DiscountAnalysis';
+import DiscountAnalysisStacked from '@/components/DiscountAnalysisStacked';
 import { DataRow, MetricType } from '@/lib/types';
 import { loadCSV } from '@/lib/dataLoader';
 import { filterByRegion, filterBySegment, calculateScorecard } from '@/lib/dataProcessor';
@@ -26,6 +27,9 @@ export default function Dashboard() {
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('profit');
   const [mapFilter, setMapFilter] = useState<MapFilter | null>(null);
+  const [chartKey, setChartKey] = useState(0);
+  
+  const handleRefresh = () => setChartKey(k => k + 1);
 
   // Load CSV data on mount
   useEffect(() => {
@@ -108,6 +112,7 @@ export default function Dashboard() {
         onRegionChange={setSelectedRegion}
         onSegmentChange={setSelectedSegment}
         onMetricChange={setSelectedMetric}
+        onRefresh={handleRefresh}
         filteredData={filteredData}
       />
       
@@ -121,12 +126,13 @@ export default function Dashboard() {
             data={filteredData}
             metric={selectedMetric}
             selectedRegion={selectedRegion}
+            key={`perf-${chartKey}`}
           />
         </div>
         
         {/* Row 3: City Performance + Map */}
         <div className="grid grid-cols-1 lg:grid-cols-[30fr_70fr] gap-4 mb-6">
-          <CityChart data={filteredData} metric={selectedMetric} />
+          <CityChart data={filteredData} metric={selectedMetric} key={`city-${chartKey}`} />
           <GeographicMap
             data={filteredData}
             selectedRegion={selectedRegion}
@@ -138,11 +144,16 @@ export default function Dashboard() {
         </div>
         
         {/* Row 4: Subcategory Combo Chart */}
-        <SubcategoryCombo data={filteredData} metric={selectedMetric} />
+        <SubcategoryCombo data={filteredData} metric={selectedMetric} key={`subcat-${chartKey}`} />
         
-        {/* Row 5: Discount Analysis */}
+        {/* Row 5: Discount Analysis - Smooth Combo + Avg Scatter */}
         <div className="mb-6">
-          <DiscountAnalysis data={filteredData} metric={selectedMetric} />
+          <DiscountAnalysis data={filteredData} metric={selectedMetric} key={`discount-${chartKey}`} />
+        </div>
+        
+        {/* Row 6: Discount Analysis - 100% Stacked + Median Scatter */}
+        <div className="mb-6">
+          <DiscountAnalysisStacked data={filteredData} metric={selectedMetric} key={`discount-stacked-${chartKey}`} />
         </div>
       </div>
       

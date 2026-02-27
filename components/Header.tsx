@@ -11,6 +11,7 @@ interface HeaderProps {
   onRegionChange: (region: string) => void;
   onSegmentChange: (segment: string) => void;
   onMetricChange: (metric: MetricType) => void;
+  onRefresh?: () => void;
   filteredData?: DataRow[];
 }
 
@@ -43,6 +44,7 @@ const Header: React.FC<HeaderProps> = ({
   onRegionChange,
   onSegmentChange,
   onMetricChange,
+  onRefresh,
   filteredData = [],
 }) => {
   const [exportOpen, setExportOpen] = useState(false);
@@ -172,8 +174,23 @@ const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
         
-        {/* Right: Export */}
-        <div className="relative shrink-0" ref={exportRef}>
+        {/* Right: Refresh + Export */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Refresh Button */}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="flex items-center justify-center w-8 h-8 md:w-9 md:h-9 bg-white/20 backdrop-blur text-white rounded-lg border border-white/30 hover:bg-white/30 transition-all"
+              title="Refresh all charts"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          )}
+          
+          {/* Export */}
+          <div className="relative" ref={exportRef}>
           <button
             onClick={() => !exporting && setExportOpen(!exportOpen)}
             disabled={exporting}
@@ -216,6 +233,7 @@ const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </header>

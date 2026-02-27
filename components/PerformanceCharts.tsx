@@ -98,6 +98,8 @@ const SingleChart: React.FC<SingleChartProps> = ({
       show: false,
     },
     tooltip: {
+      shared: true,
+      intersect: false,
       custom: function({ seriesIndex, dataPointIndex, w }) {
         const item = data[dataPointIndex];
         const value = item.value;
