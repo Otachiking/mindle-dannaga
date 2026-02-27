@@ -13,12 +13,19 @@ import { DataRow, MetricType } from '@/lib/types';
 import { loadCSV } from '@/lib/dataLoader';
 import { filterByRegion, filterBySegment, calculateScorecard } from '@/lib/dataProcessor';
 
+// Map filter type for drill-down
+interface MapFilter {
+  type: 'region' | 'state' | 'city' | 'zipcode';
+  value: string;
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DataRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
   const [selectedSegment, setSelectedSegment] = useState<string>('all');
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('profit');
+  const [mapFilter, setMapFilter] = useState<MapFilter | null>(null);
 
   // Load CSV data on mount
   useEffect(() => {
@@ -40,8 +47,40 @@ export default function Dashboard() {
   const filteredData = useMemo(() => {
     let filtered = filterByRegion(data, selectedRegion);
     filtered = filterBySegment(filtered, selectedSegment);
+    
+    // Apply map drill-down filter
+    if (mapFilter) {
+      switch (mapFilter.type) {
+        case 'region':
+          filtered = filtered.filter(row => row['Region'] === mapFilter.value);
+          break;
+        case 'state':
+          filtered = filtered.filter(row => row['State'] === mapFilter.value);
+          break;
+        case 'city':
+          filtered = filtered.filter(row => row['City'] === mapFilter.value);
+          break;
+        case 'zipcode':
+          filtered = filtered.filter(row => String(row['Postal Code']) === mapFilter.value);
+          break;
+      }
+    }
+    
     return filtered;
-  }, [data, selectedRegion, selectedSegment]);
+  }, [data, selectedRegion, selectedSegment, mapFilter]);
+  
+  // Handle map drill-down click
+  const handleMapFilter = (type: 'region' | 'state' | 'city' | 'zipcode', value: string) => {
+    // Toggle off if clicking same filter
+    if (mapFilter?.type === type && mapFilter?.value === value) {
+      setMapFilter(null);
+    } else {
+      setMapFilter({ type, value });
+    }
+  };
+  
+  // Clear map filter
+  const clearMapFilter = () => setMapFilter(null);
 
   // Calculate scorecard metrics
   const scorecardData = useMemo(() => {
@@ -88,7 +127,14 @@ export default function Dashboard() {
         {/* Row 3: City Performance + Map */}
         <div className="grid grid-cols-1 lg:grid-cols-[30fr_70fr] gap-4 mb-6">
           <CityChart data={filteredData} metric={selectedMetric} />
-          <GeographicMap data={filteredData} selectedRegion={selectedRegion} metric={selectedMetric} />
+          <GeographicMap
+            data={filteredData}
+            selectedRegion={selectedRegion}
+            metric={selectedMetric}
+            mapFilter={mapFilter}
+            onMapFilter={handleMapFilter}
+            onClearFilter={clearMapFilter}
+          />
         </div>
         
         {/* Row 4: Subcategory Combo Chart */}

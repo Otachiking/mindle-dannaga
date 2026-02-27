@@ -15,16 +15,32 @@ import { REGION_COLORS, formatMetricValue, STATE_TO_REGION } from '@/lib/constan
 
 const geoUrl = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json';
 
+// Map filter type
+interface MapFilter {
+  type: 'region' | 'state' | 'city' | 'zipcode';
+  value: string;
+}
+
 interface GeographicMapProps {
   data: DataRow[];
   selectedRegion: string;
   metric: MetricType;
+  mapFilter?: MapFilter | null;
+  onMapFilter?: (type: 'region' | 'state' | 'city' | 'zipcode', value: string) => void;
+  onClearFilter?: () => void;
 }
 
 type MapViewMode = 'value' | 'region';
 type MapScaleMode = 'region' | 'state' | 'city' | 'zipcode';
 
-const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, metric }) => {
+const GeographicMap: React.FC<GeographicMapProps> = ({
+  data,
+  selectedRegion,
+  metric,
+  mapFilter,
+  onMapFilter,
+  onClearFilter,
+}) => {
   const [mapMetric, setMapMetric] = useState<MapMetricType>('profit');
   const [viewMode, setViewMode] = useState<MapViewMode>('value');
   const [scaleMode, setScaleMode] = useState<MapScaleMode>('state');
@@ -313,6 +329,30 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
     setZoom(position.zoom);
   }, []);
   
+  // Handle state click for drill-down filtering
+  const handleStateClick = (stateName: string) => {
+    if (!onMapFilter) return;
+    
+    const region = STATE_TO_REGION[stateName];
+    
+    switch (scaleMode) {
+      case 'region':
+        if (region) onMapFilter('region', region);
+        break;
+      case 'state':
+        onMapFilter('state', stateName);
+        break;
+      case 'city':
+        // For city mode, click on state filters to that state
+        onMapFilter('state', stateName);
+        break;
+      case 'zipcode':
+        // For zipcode mode, click on state filters to that state
+        onMapFilter('state', stateName);
+        break;
+    }
+  };
+  
   const metricButtons = (
     <div className="flex gap-1 flex-wrap">
       <Button
@@ -346,8 +386,24 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
     </div>
   );
   
+  // Filter indicator for title
+  const filterIndicator = mapFilter ? (
+    <span className="inline-flex items-center gap-1.5 ml-2 px-2 py-0.5 bg-[#e3f2fd] text-[#1470e6] rounded-full text-xs font-medium">
+      <span>Filtered: {mapFilter.value}</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); onClearFilter?.(); }}
+        className="hover:bg-[#bbdefb] rounded-full p-0.5 transition-colors"
+        title="Clear filter"
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </span>
+  ) : null;
+  
   return (
-    <Card title="Geographic Distribution" headerRight={metricButtons}>
+    <Card title="Geographic Distribution" titleExtra={filterIndicator} headerRight={metricButtons}>
       <div className="relative h-[400px]">
         {/* Color By & Scale By Dropdowns - Top Left */}
         <div className="absolute top-2 left-2 z-10 flex gap-1.5">
@@ -443,6 +499,7 @@ const GeographicMap: React.FC<GeographicMapProps> = ({ data, selectedRegion, met
                       }}
                       onMouseEnter={(event) => handleMouseEnter(geo, event as unknown as React.MouseEvent)}
                       onMouseLeave={handleMouseLeave}
+                      onClick={() => handleStateClick(geo.properties.name)}
                     />
                   );
                 })

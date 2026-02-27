@@ -141,6 +141,7 @@ const CityChart: React.FC<CityChartProps> = ({ data, metric }) => {
     <Card title="City Performance" titleExtra={metricIndicator} headerRight={toggleButtons}>
       <div className="h-[400px]">
         <Chart
+          key={`city-${mode}-${metric}-${cityData.map(c => c.city).join(',')}`}
           options={chartOptions}
           series={series}
           type="bar"
