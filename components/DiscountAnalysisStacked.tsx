@@ -97,10 +97,9 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
       width: 2,
     },
     colors: [
-      STACKED_METRIC_COLORS.quantity,
-      STACKED_METRIC_COLORS.profit,
       STACKED_METRIC_COLORS.sales,
-      STACKED_METRIC_COLORS.profitMargin,
+      STACKED_METRIC_COLORS.profit,
+      STACKED_METRIC_COLORS.quantity,
     ],
     markers: {
       size: 4,
@@ -155,10 +154,9 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
         const marginColor = item.profitMargin >= 0 ? '#69db7c' : '#ff6b6b';
         return `<div style="background:#2c3e50;color:white;padding:10px 14px;border-radius:8px;font-size:12px;min-width:200px;">
           <div style="font-weight:600;margin-bottom:6px;font-size:13px;">Discount: ${(item.discount * 100).toFixed(0)}%</div>
-          <div style="margin-bottom:4px;"><span style="color:#e43fdd;">●</span> Quantity: ${item.quantity.toLocaleString()} <span style="color:rgba(255,255,255,0.5);">(${pct.quantity.toFixed(1)}%)</span></div>
-          <div style="margin-bottom:4px;"><span style="color:${profitColor};">●</span> Profit: ${formatFullValue(item.profit, 'profit')} <span style="color:rgba(255,255,255,0.5);">(${pct.profit.toFixed(1)}%)</span></div>
           <div style="margin-bottom:4px;"><span style="color:#1470e6;">●</span> Sales: ${formatFullValue(item.sales, 'sales')} <span style="color:rgba(255,255,255,0.5);">(${pct.sales.toFixed(1)}%)</span></div>
-          <div style="margin-bottom:4px;"><span style="color:${marginColor};">●</span> Profit Margin: ${item.profitMargin.toFixed(1)}% <span style="color:rgba(255,255,255,0.5);">(${pct.profitMargin.toFixed(1)}%)</span></div>
+          <div style="margin-bottom:4px;"><span style="color:${profitColor};">●</span> Profit: ${formatFullValue(item.profit, 'profit')} <span style="color:rgba(255,255,255,0.5);">(${pct.profit.toFixed(1)}%)</span></div>
+          <div style="margin-bottom:4px;"><span style="color:#e43fdd;">●</span> Quantity: ${item.quantity.toLocaleString()} <span style="color:rgba(255,255,255,0.5);">(${pct.quantity.toFixed(1)}%)</span></div>
           <div style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:6px;">${item.count.toLocaleString()} transactions</div>
         </div>`;
       },
@@ -166,10 +164,9 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
   }), [discountData, stackedPercentages]);
   
   const stackedSeries = useMemo(() => [
-    { name: 'Quantity', data: stackedPercentages.map(p => p.quantity) },
-    { name: 'Profit', data: stackedPercentages.map(p => p.profit) },
     { name: 'Sales', data: stackedPercentages.map(p => p.sales) },
-    { name: 'Profit Margin', data: stackedPercentages.map(p => p.profitMargin) },
+    { name: 'Profit', data: stackedPercentages.map(p => p.profit) },
+    { name: 'Quantity', data: stackedPercentages.map(p => p.quantity) },
   ], [stackedPercentages]);
   
   // ──────────── RIGHT CHART: Scatter with MEDIAN Discount on X ────────────
@@ -196,7 +193,7 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
       subcatDiscounts.set(subcat, current);
     }
     
-    const result: { subcategory: string; category: string; medianDiscount: number; metricValue: number }[] = [];
+    const result: { subcategory: string; category: string; medianDiscount: number; metricValue: number; sales: number }[] = [];
     subcatDiscounts.forEach((val, subcat) => {
       let metricVal: number;
       switch (metric) {
@@ -210,6 +207,7 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
         category: val.category,
         medianDiscount: median(val.discounts),
         metricValue: metricVal,
+        sales: val.sales,
       });
     });
     
@@ -221,6 +219,9 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
     return Math.ceil(max / 5) * 5 + 5;
   }, [scatterData]);
   
+  // Scale sales for bubble size (normalize to reasonable range)
+  const maxSales = useMemo(() => Math.max(...scatterData.map(s => s.sales)), [scatterData]);
+  
   const scatterSeries = useMemo(() => {
     const categories = ['Technology', 'Office Supplies', 'Furniture'];
     return categories.map(cat => ({
@@ -228,25 +229,27 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
       data: scatterData
         .filter(s => s.category === cat)
         .map(s => ({
-          x: Math.round(s.medianDiscount * 10000) / 100,
-          y: Math.round(s.metricValue * 100) / 100,
+          x: Math.round(s.metricValue * 100) / 100,
+          y: Math.round(s.medianDiscount * 10000) / 100,
+          z: Math.round((s.sales / maxSales) * 50) + 5, // Scale to 5-55 range for bubble size
           subcategory: s.subcategory,
+          salesValue: s.sales,
         })),
     }));
-  }, [scatterData]);
+  }, [scatterData, maxSales]);
   
   const scatterHasNegative = useMemo(() => scatterData.some(s => s.metricValue < 0), [scatterData]);
   const scatterMinValue = useMemo(() => Math.min(0, ...scatterData.map(s => s.metricValue)), [scatterData]);
   
   const scatterChartOptions: ApexCharts.ApexOptions = useMemo(() => ({
     chart: {
-      type: 'scatter',
+      type: 'bubble',
       toolbar: {
         show: true,
         tools: {
           download: false,
           selection: false,
-          zoom: true,
+          zoom: false,
           zoomin: true,
           zoomout: true,
           pan: false,
@@ -254,7 +257,7 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
         },
       },
       fontFamily: 'inherit',
-      zoom: { enabled: true, type: 'xy' },
+      zoom: { enabled: false },
     },
     colors: [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']],
     markers: {
@@ -277,6 +280,18 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
       background: { enabled: false },
     },
     xaxis: {
+      title: {
+        text: METRIC_LABELS[metric],
+        style: { color: COLORS.textGray, fontSize: '11px' },
+      },
+      labels: {
+        formatter: (val: string) => formatAxisValue(Number(val), metric),
+        style: { fontSize: '10px', colors: COLORS.textGray },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
       min: 0,
       max: maxMedianDiscount,
       title: {
@@ -284,20 +299,7 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
         style: { color: COLORS.textGray, fontSize: '11px' },
       },
       labels: {
-        formatter: (val: string) => `${Number(val).toFixed(0)}%`,
-        style: { fontSize: '10px', colors: COLORS.textGray },
-      },
-      axisBorder: { show: false },
-      axisTicks: { show: false },
-      tickAmount: 6,
-    },
-    yaxis: {
-      title: {
-        text: METRIC_LABELS[metric],
-        style: { color: COLORS.textGray, fontSize: '11px' },
-      },
-      labels: {
-        formatter: (val: number) => formatAxisValue(val, metric),
+        formatter: (val: number) => `${val.toFixed(0)}%`,
         style: { fontSize: '10px', colors: COLORS.textGray },
       },
     },
@@ -316,7 +318,7 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
     tooltip: {
       shared: false,
       intersect: true,
-      custom: function({ seriesIndex, dataPointIndex, w }: { seriesIndex: number; dataPointIndex: number; w: { config: { series: { name: string; data: { x: number; y: number; subcategory: string }[] }[] } } }) {
+      custom: function({ seriesIndex, dataPointIndex, w }: { seriesIndex: number; dataPointIndex: number; w: { config: { series: { name: string; data: { x: number; y: number; subcategory: string; salesValue: number }[] }[] } } }) {
         const point = w.config.series[seriesIndex].data[dataPointIndex];
         const cat = w.config.series[seriesIndex].name;
         const color = [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']][seriesIndex];
@@ -326,8 +328,9 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
             <div style="width:10px;height:10px;border-radius:2px;background:${color};"></div>
             <span style="color:rgba(255,255,255,0.7);">${cat}</span>
           </div>
-          <div>Median Discount: ${point.x.toFixed(1)}%</div>
-          <div>${METRIC_LABELS[metric]}: ${formatFullValue(point.y, metric)}</div>
+          <div>${METRIC_LABELS[metric]}: ${formatFullValue(point.x, metric)}</div>
+          <div>Median Discount: ${point.y.toFixed(1)}%</div>
+          <div>Total Sales: ${formatFullValue(point.salesValue, 'sales')}</div>
         </div>`;
       },
     },
@@ -372,7 +375,7 @@ const DiscountAnalysisStacked: React.FC<Props> = ({ data, metric }) => {
             key={`discount-median-scatter-${metric}-${scatterData.length}`}
             options={scatterChartOptions}
             series={scatterSeries}
-            type="scatter"
+            type="bubble"
             height="100%"
           />
         </div>

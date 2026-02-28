@@ -18,12 +18,12 @@ interface SubcategoryComboProps {
   metric: MetricType;
 }
 
-// Stacked bar colors: Profit (dark blue), Sales (medium blue), Quantity line (pink), Profit Margin (purple)
+// Stacked bar colors: Profit (dark blue), Sales (medium blue), Quantity line (purple), Profit Margin (pink)
 const STACKED_COLORS = {
   profit: '#0b2d79',  // Dark blue
   sales: '#1470e6',   // Medium blue
-  quantity: '#e43fdd', // Pink
-  profitMargin: '#9852d9', // Purple
+  quantity: '#9852d9', // Purple
+  profitMargin: '#e43fdd', // Pink
 };
 
 type ChartMode = 'combo' | 'profit' | 'quantity' | 'sales';
@@ -170,7 +170,7 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
           stroke: {
             width: [0, 0, 3, 2.5],
             curve: 'smooth' as const,
-            dashArray: [0, 0, 0, 5],
+            dashArray: [0, 0, 5, 0],
           },
           fill: {
             opacity: 1,
