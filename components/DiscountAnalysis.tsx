@@ -378,6 +378,12 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
     tooltip: {
       shared: false,
       intersect: true,
+      fixed: {
+        enabled: true,     
+        position: 'topRight', 
+        offsetX: 0,           
+        offsetY: 0,           // adjust vertical offset
+      },
       custom: function({ seriesIndex, dataPointIndex, w }: { seriesIndex: number; dataPointIndex: number; w: { config: { series: { name: string; data: { x: number; y: number; subcategory: string; profit: number; minDiscount: number; maxDiscount: number; modeDiscount: number }[] }[] } } }) {
         const point = w.config.series[seriesIndex].data[dataPointIndex];
         const cat = w.config.series[seriesIndex].name;
@@ -390,10 +396,9 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
             <span style="color:rgba(255,255,255,0.7);">${cat}</span>
           </div>
           <div style="margin-bottom:4px;"><span style="color:${profitColor};">●</span> Profit: ${formatFullValue(point.profit, 'profit')}</div>
-          <div>${METRIC_LABELS[metric]}: ${formatFullValue(point.y, metric)}</div>
           <div style="margin-top:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.2);font-size:11px;">
             <div>Avg. Discount: ${point.x.toFixed(1)}%</div>
-            <div>Min Discount: ${(point.minDiscount * 100).toFixed(0)}%</div>
+            <!-- <div>Min Discount: ${(point.minDiscount * 100).toFixed(0)}%</div> -->
             <div>Max Discount: ${(point.maxDiscount * 100).toFixed(0)}%</div>
             <div>Mode Discount: ${(point.modeDiscount * 100).toFixed(0)}%</div>
           </div>
@@ -424,15 +429,17 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
   
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <Card title="Discount Impact" titleExtra={<span className="text-xs font-normal text-[#6c757d]">(Smooth Combo)</span>}>
-        <div className="h-[320px]">
-          <Chart
-            key={`discount-combo-${discountLineData.length}`}
-            options={comboChartOptions}
-            series={comboSeries}
-            type="line"
-            height="100%"
-          />
+      <Card title="Discount Impact">
+        <div className="h-[320px] overflow-x-auto">
+          <div className="min-w-[500px] h-full">
+            <Chart
+              key={`discount-combo-${discountLineData.length}`}
+              options={comboChartOptions}
+              series={comboSeries}
+              type="line"
+              height="100%"
+            />
+          </div>
         </div>
       </Card>
       <Card title="Discount vs Performance" titleExtra={scatterMetricIndicator}>

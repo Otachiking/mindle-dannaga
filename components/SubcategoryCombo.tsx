@@ -366,14 +366,16 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
       className="mb-6"
       headerRight={modeButtons}
     >
-      <div className="h-[380px]">
-        <Chart
-          key={chartMode}
-          options={chartOptions}
-          series={series}
-          type={chartType}
-          height="100%"
-        />
+      <div className="h-[380px] overflow-x-auto">
+        <div className="min-w-[700px] h-full">
+          <Chart
+            key={chartMode}
+            options={chartOptions}
+            series={series}
+            type={chartType}
+            height="100%"
+          />
+        </div>
       </div>
     </Card>
   );
