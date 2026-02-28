@@ -86,7 +86,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
     const maxQty = Math.max(...discountLineData.map(d => d.quantity));
     
     // Calculate aligned ranges so 0 lines match
-    const leftMin = hasNegativeProfit ? minProfit * 1.1 : 0;
+    const leftMin = hasNegativeProfit ? Math.min(minProfit * 1.1, -50000) : -50000;
     const leftMax = maxRevenue * 1.1;
     const zeroRatio = leftMin < 0 ? Math.abs(leftMin) / (Math.abs(leftMin) + leftMax) : 0;
     const rightMax = maxQty * 1.1;
@@ -102,10 +102,14 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
       stroke: {
         curve: 'smooth',
         width: [2.5, 2.5, 2.5],
+        dashArray: [0, 0, 5],
       },
-      colors: ['#0b2d79', '#1470e6', '#e43fdd'],
+      fill: {
+        opacity: [1, 0.7, 0.7],
+      },
+      colors: ['#0b2d79', '#1470e6', '#9852d9'],
       markers: {
-        size: [6, 5, 5],
+        size: [6, 0, 0],
         strokeWidth: 2,
         strokeColors: '#fff',
         hover: { size: 8 },
@@ -148,7 +152,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
           seriesName: 'Quantity',
           opposite: true,
           title: { text: 'Quantity', style: { color: '#6c757d', fontSize: '11px' } },
-          min: rightMin,
+          min: Math.min(rightMin, -5000),
           max: rightMax,
           labels: {
             formatter: (val: number) => {
@@ -181,7 +185,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
             <div style="font-weight:600;margin-bottom:6px;font-size:13px;">Discount: ${(item.discount * 100).toFixed(0)}%</div>
             <div style="margin-bottom:4px;"><span style="color:${profitColor};">●</span> Profit: ${formatFullValue(item.profit, 'profit')}</div>
             <div style="margin-bottom:4px;"><span style="color:#1470e6;">●</span> Sales: ${formatFullValue(item.sales, 'sales')}</div>
-            <div style="margin-bottom:4px;"><span style="color:#e43fdd;">●</span> Quantity: ${item.quantity.toLocaleString()}</div>
+            <div style="margin-bottom:4px;"><span style="color:#9852d9;">●</span> Quantity: ${item.quantity.toLocaleString()}</div>
             <div style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:6px;">${item.count.toLocaleString()} transactions</div>
           </div>`;
         },
@@ -280,7 +284,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         tools: {
           download: false,
           selection: false,
-          zoom: true,
+          zoom: false,
           zoomin: true,
           zoomout: true,
           pan: false,
@@ -288,7 +292,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         },
       },
       fontFamily: 'inherit',
-      zoom: { enabled: true, type: 'xy' },
+      zoom: { enabled: false },
     },
     colors: [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']],
     markers: {

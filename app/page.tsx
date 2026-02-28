@@ -31,6 +31,14 @@ export default function Dashboard() {
   
   const handleRefresh = () => setChartKey(k => k + 1);
 
+  // Auto-refresh charts when any filter changes
+  useEffect(() => {
+    if (!loading) {
+      handleRefresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRegion, selectedSegment, selectedMetric]);
+
   // Load CSV data on mount
   useEffect(() => {
     const fetchData = async () => {
