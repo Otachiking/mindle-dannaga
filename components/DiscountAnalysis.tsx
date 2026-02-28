@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import type { Props as ApexChartProps } from 'react-apexcharts';
 import type ApexCharts from 'apexcharts';
@@ -32,6 +32,22 @@ interface SubcategoryScatter {
 }
 
 const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => {
+  // State for scatter chart zoom level (1 = default, higher = more zoomed in)
+  const [scatterZoom, setScatterZoom] = useState(1);
+  
+  // Zoom handlers for scatter chart
+  const handleScatterZoomIn = useCallback(() => {
+    setScatterZoom(z => Math.min(z + 0.5, 3));
+  }, []);
+  
+  const handleScatterZoomOut = useCallback(() => {
+    setScatterZoom(z => Math.max(z - 0.5, 1));
+  }, []);
+  
+  const handleScatterReset = useCallback(() => {
+    setScatterZoom(1);
+  }, []);
+
   // Aggregate data by discount level for line chart
   const discountLineData = useMemo(() => {
     const bucketMap = new Map<number, { sales: number; profit: number; count: number; quantity: number }>();
@@ -279,24 +295,13 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
   const scatterChartOptions: ApexCharts.ApexOptions = useMemo(() => ({
     chart: {
       type: 'scatter',
-      toolbar: {
-        show: true,
-        tools: {
-          download: false,
-          selection: false,
-          zoom: false,
-          zoomin: true,
-          zoomout: true,
-          pan: false,
-          reset: true,
-        },
-      },
+      toolbar: { show: false },
       fontFamily: 'inherit',
       zoom: { enabled: false },
     },
     colors: [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']],
     markers: {
-      size: 8,
+      size: 8 * scatterZoom,
       strokeWidth: 1,
       strokeColors: '#fff',
     },
@@ -308,7 +313,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
       textAnchor: 'middle' as const,
       offsetY: 8,
       style: {
-        fontSize: '8px',
+        fontSize: `${8 * scatterZoom}px`,
         fontWeight: '500',
         colors: [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']],
       },
@@ -385,7 +390,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         },
       }],
     } : undefined,
-  }), [metric, scatterHasNegative, scatterMinValue, maxDiscount]);
+  }), [metric, scatterHasNegative, scatterMinValue, maxDiscount, scatterZoom]);
   
   const scatterMetricIndicator = (
     <span className="text-xs font-normal text-[#6c757d]">({METRIC_LABELS[metric]})</span>
@@ -405,7 +410,37 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         </div>
       </Card>
       <Card title="Discount vs Performance" titleExtra={scatterMetricIndicator}>
-        <div className="h-[320px]">
+        <div className="h-[320px] relative">
+          {/* Zoom Controls - Top Right */}
+          <div className="absolute top-2 right-2 z-10 flex gap-1">
+            <button
+              onClick={handleScatterZoomIn}
+              className="w-8 h-8 bg-white border border-[#e9ecef] rounded-lg shadow-sm flex items-center justify-center hover:bg-[#f8f9fa] transition-colors"
+              title="Zoom In"
+            >
+              <svg className="w-4 h-4 text-[#2c3e50]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+            <button
+              onClick={handleScatterZoomOut}
+              className="w-8 h-8 bg-white border border-[#e9ecef] rounded-lg shadow-sm flex items-center justify-center hover:bg-[#f8f9fa] transition-colors"
+              title="Zoom Out"
+            >
+              <svg className="w-4 h-4 text-[#2c3e50]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              </svg>
+            </button>
+            <button
+              onClick={handleScatterReset}
+              className="w-8 h-8 bg-white border border-[#e9ecef] rounded-lg shadow-sm flex items-center justify-center hover:bg-[#f8f9fa] transition-colors"
+              title="Reset"
+            >
+              <svg className="w-4 h-4 text-[#2c3e50]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
           <Chart
             key={`discount-scatter-${metric}-${scatterData.length}`}
             options={scatterChartOptions}

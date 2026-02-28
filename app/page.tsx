@@ -9,7 +9,6 @@ import GeographicMap from '@/components/GeographicMap';
 import SubcategoryCombo from '@/components/SubcategoryCombo';
 import PerformanceCharts from '@/components/PerformanceCharts';
 import DiscountAnalysis from '@/components/DiscountAnalysis';
-import DiscountAnalysisStacked from '@/components/DiscountAnalysisStacked';
 import { DataRow, MetricType } from '@/lib/types';
 import { loadCSV } from '@/lib/dataLoader';
 import { filterByRegion, filterBySegment, calculateScorecard } from '@/lib/dataProcessor';
@@ -157,11 +156,6 @@ export default function Dashboard() {
         {/* Row 5: Discount Analysis - Smooth Combo + Avg Scatter */}
         <div className="mb-6">
           <DiscountAnalysis data={filteredData} metric={selectedMetric} key={`discount-${chartKey}`} />
-        </div>
-        
-        {/* Row 6: Discount Analysis - 100% Stacked + Median Scatter */}
-        <div className="mb-6">
-          <DiscountAnalysisStacked data={filteredData} metric={selectedMetric} key={`discount-stacked-${chartKey}`} />
         </div>
       </div>
       
