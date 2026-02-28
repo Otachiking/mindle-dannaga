@@ -327,7 +327,7 @@ const SubcategoryCombo: React.FC<SubcategoryComboProps> = ({ data, metric }) => 
   }, [subcategoryData, chartMode, hasNegativeProfit, minProfit]);
   
   const modeButtons = (
-    <div className="flex gap-1">
+    <div className="flex gap-1 shrink-0">
       <Button
         active={chartMode === 'combo'}
         onClick={() => setChartMode('combo')}

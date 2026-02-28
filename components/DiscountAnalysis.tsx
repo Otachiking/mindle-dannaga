@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import type { Props as ApexChartProps } from 'react-apexcharts';
 import type ApexCharts from 'apexcharts';
@@ -27,27 +27,32 @@ interface SubcategoryScatter {
   subcategory: string;
   category: string;
   avgDiscount: number;
+  minDiscount: number;
+  maxDiscount: number;
+  modeDiscount: number;
+  profit: number;
   metricValue: number;
   color: string;
 }
 
-const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => {
-  // State for scatter chart zoom level (1 = default, higher = more zoomed in)
-  const [scatterZoom, setScatterZoom] = useState(1);
-  
-  // Zoom handlers for scatter chart
-  const handleScatterZoomIn = useCallback(() => {
-    setScatterZoom(z => Math.min(z + 0.5, 3));
-  }, []);
-  
-  const handleScatterZoomOut = useCallback(() => {
-    setScatterZoom(z => Math.max(z - 0.5, 1));
-  }, []);
-  
-  const handleScatterReset = useCallback(() => {
-    setScatterZoom(1);
-  }, []);
+// Helper: compute mode of a number array (most frequent value)
+function mode(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  const freq = new Map<number, number>();
+  let maxFreq = 0;
+  let modeVal = arr[0];
+  for (const val of arr) {
+    const count = (freq.get(val) || 0) + 1;
+    freq.set(val, count);
+    if (count > maxFreq) {
+      maxFreq = count;
+      modeVal = val;
+    }
+  }
+  return modeVal;
+}
 
+const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => {
   // Aggregate data by discount level for line chart
   const discountLineData = useMemo(() => {
     const bucketMap = new Map<number, { sales: number; profit: number; count: number; quantity: number }>();
@@ -233,19 +238,19 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
   
   // Scatter plot: aggregate by subcategory (Avg Discount on X)
   const scatterData = useMemo(() => {
-    const subcatMap = new Map<string, { category: string; sales: number; profit: number; quantity: number; totalDiscount: number; count: number }>();
+    // Collect all discounts per subcategory
+    const subcatMap = new Map<string, { category: string; sales: number; profit: number; quantity: number; discounts: number[] }>();
     
     for (const row of data) {
       const subcat = row['Sub-Category'];
       const current = subcatMap.get(subcat) || {
         category: row['Category'],
-        sales: 0, profit: 0, quantity: 0, totalDiscount: 0, count: 0,
+        sales: 0, profit: 0, quantity: 0, discounts: [],
       };
       current.sales += row['Sales'];
       current.profit += row['Profit'];
       current.quantity += row['Quantity'];
-      current.totalDiscount += row['Discount'];
-      current.count += 1;
+      current.discounts.push(row['Discount']);
       subcatMap.set(subcat, current);
     }
     
@@ -258,10 +263,19 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         case 'profitMargin': metricVal = val.sales > 0 ? (val.profit / val.sales) * 100 : 0; break;
         default: metricVal = val.profit;
       }
+      const avgDiscount = val.discounts.reduce((a, b) => a + b, 0) / val.discounts.length;
+      const minDiscount = Math.min(...val.discounts);
+      const maxDiscount = Math.max(...val.discounts);
+      const modeDiscount = mode(val.discounts.map(d => Math.round(d * 100) / 100));
+      
       result.push({
         subcategory: subcat,
         category: val.category,
-        avgDiscount: val.totalDiscount / val.count,
+        avgDiscount,
+        minDiscount,
+        maxDiscount,
+        modeDiscount,
+        profit: val.profit,
         metricValue: metricVal,
         color: CATEGORY_COLORS[val.category] || COLORS.textGray,
       });
@@ -285,6 +299,10 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
           x: Math.round(s.avgDiscount * 10000) / 100,
           y: Math.round(s.metricValue * 100) / 100,
           subcategory: s.subcategory,
+          profit: s.profit,
+          minDiscount: s.minDiscount,
+          maxDiscount: s.maxDiscount,
+          modeDiscount: s.modeDiscount,
         })),
     }));
   }, [scatterData]);
@@ -297,11 +315,12 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
       type: 'scatter',
       toolbar: { show: false },
       fontFamily: 'inherit',
-      zoom: { enabled: false },
+      zoom: { enabled: true, type: 'xy' },
+      selection: { enabled: true },
     },
     colors: [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']],
     markers: {
-      size: 8 * scatterZoom,
+      size: 8,
       strokeWidth: 1,
       strokeColors: '#fff',
     },
@@ -313,7 +332,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
       textAnchor: 'middle' as const,
       offsetY: 8,
       style: {
-        fontSize: `${8 * scatterZoom}px`,
+        fontSize: '8px',
         fontWeight: '500',
         colors: [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']],
       },
@@ -359,18 +378,25 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
     tooltip: {
       shared: false,
       intersect: true,
-      custom: function({ seriesIndex, dataPointIndex, w }: { seriesIndex: number; dataPointIndex: number; w: { config: { series: { name: string; data: { x: number; y: number; subcategory: string }[] }[] } } }) {
+      custom: function({ seriesIndex, dataPointIndex, w }: { seriesIndex: number; dataPointIndex: number; w: { config: { series: { name: string; data: { x: number; y: number; subcategory: string; profit: number; minDiscount: number; maxDiscount: number; modeDiscount: number }[] }[] } } }) {
         const point = w.config.series[seriesIndex].data[dataPointIndex];
         const cat = w.config.series[seriesIndex].name;
         const color = [CATEGORY_COLORS['Technology'], CATEGORY_COLORS['Office Supplies'], CATEGORY_COLORS['Furniture']][seriesIndex];
-        return `<div style="background:#2c3e50;color:white;padding:8px 12px;border-radius:8px;font-size:12px;min-width:160px;">
+        const profitColor = point.profit >= 0 ? '#69db7c' : '#ff6b6b';
+        return `<div style="background:#2c3e50;color:white;padding:8px 12px;border-radius:8px;font-size:12px;min-width:180px;">
           <div style="font-weight:600;margin-bottom:4px;">${point.subcategory}</div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.2);">
             <div style="width:10px;height:10px;border-radius:2px;background:${color};"></div>
             <span style="color:rgba(255,255,255,0.7);">${cat}</span>
           </div>
-          <div>Avg. Discount: ${point.x.toFixed(1)}%</div>
+          <div style="margin-bottom:4px;"><span style="color:${profitColor};">●</span> Profit: ${formatFullValue(point.profit, 'profit')}</div>
           <div>${METRIC_LABELS[metric]}: ${formatFullValue(point.y, metric)}</div>
+          <div style="margin-top:6px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.2);font-size:11px;">
+            <div>Avg. Discount: ${point.x.toFixed(1)}%</div>
+            <div>Min Discount: ${(point.minDiscount * 100).toFixed(0)}%</div>
+            <div>Max Discount: ${(point.maxDiscount * 100).toFixed(0)}%</div>
+            <div>Mode Discount: ${(point.modeDiscount * 100).toFixed(0)}%</div>
+          </div>
         </div>`;
       },
     },
@@ -390,7 +416,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         },
       }],
     } : undefined,
-  }), [metric, scatterHasNegative, scatterMinValue, maxDiscount, scatterZoom]);
+  }), [metric, scatterHasNegative, scatterMinValue, maxDiscount]);
   
   const scatterMetricIndicator = (
     <span className="text-xs font-normal text-[#6c757d]">({METRIC_LABELS[metric]})</span>
@@ -410,37 +436,7 @@ const DiscountAnalysis: React.FC<DiscountAnalysisProps> = ({ data, metric }) => 
         </div>
       </Card>
       <Card title="Discount vs Performance" titleExtra={scatterMetricIndicator}>
-        <div className="h-[320px] relative">
-          {/* Zoom Controls - Top Right */}
-          <div className="absolute top-2 right-2 z-10 flex gap-1">
-            <button
-              onClick={handleScatterZoomIn}
-              className="w-8 h-8 bg-white border border-[#e9ecef] rounded-lg shadow-sm flex items-center justify-center hover:bg-[#f8f9fa] transition-colors"
-              title="Zoom In"
-            >
-              <svg className="w-4 h-4 text-[#2c3e50]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </button>
-            <button
-              onClick={handleScatterZoomOut}
-              className="w-8 h-8 bg-white border border-[#e9ecef] rounded-lg shadow-sm flex items-center justify-center hover:bg-[#f8f9fa] transition-colors"
-              title="Zoom Out"
-            >
-              <svg className="w-4 h-4 text-[#2c3e50]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
-            </button>
-            <button
-              onClick={handleScatterReset}
-              className="w-8 h-8 bg-white border border-[#e9ecef] rounded-lg shadow-sm flex items-center justify-center hover:bg-[#f8f9fa] transition-colors"
-              title="Reset"
-            >
-              <svg className="w-4 h-4 text-[#2c3e50]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          </div>
+        <div className="h-[320px]">
           <Chart
             key={`discount-scatter-${metric}-${scatterData.length}`}
             options={scatterChartOptions}

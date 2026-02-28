@@ -96,7 +96,7 @@ const Header: React.FC<HeaderProps> = ({
         {/* Left: Logo */}
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xl md:text-2xl">📊</span>
-          <div className="hidden sm:block">
+          <div className="hidden lg:block">
             <h1 className="text-base md:text-lg font-bold text-white leading-tight">MindleStore</h1>
             <p className="text-[9px] md:text-[10px] text-white/70">Performance Dashboard</p>
           </div>
@@ -180,13 +180,13 @@ const Header: React.FC<HeaderProps> = ({
           {onRefresh && (
             <button
               onClick={onRefresh}
-              className="flex items-center gap-1.5 px-2 py-1.5 md:px-3 md:py-2 bg-white/20 backdrop-blur text-white rounded-lg border border-white/30 hover:bg-white/30 transition-all text-xs font-medium"
+              className="flex items-center gap-1.5 px-2 py-1.5 lg:px-3 lg:py-2 bg-white/20 backdrop-blur text-white rounded-lg border border-white/30 hover:bg-white/30 transition-all text-xs font-medium"
               title="Refresh all charts"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              <span className="hidden min-[426px]:inline">Fix Chart</span>
+              <span className="hidden lg:inline">Fix Chart</span>
             </button>
           )}
           

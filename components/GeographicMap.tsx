@@ -354,7 +354,7 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
   };
   
   const metricButtons = (
-    <div className="flex gap-1 flex-wrap">
+    <div className="flex gap-1 shrink-0">
       <Button
         active={mapMetric === 'profit'}
         onClick={() => setMapMetric('profit')}
